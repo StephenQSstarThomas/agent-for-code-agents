@@ -1,0 +1,22 @@
+### Project Context
+This project involves developing the "Rock-Paper-Scissors" application, focusing on enhancing its current functionality and ensuring future scalability. The aim is to implement specific tasks while adhering to established architectural guidelines.
+
+### Reference Files
+- Architecture: [workspace\rock-paper-scizzers\architecture.md]
+- Tasks: [workspace\rock-paper-scizzers\task_plan.md]
+
+### Additional Files Available
+- workspace\rock-paper-scizzers\game_logic.py
+- workspace\rock-paper-scizzers\user_interface.py
+- workspace\rock-paper-scizzers\test_cases.py
+
+### CODING PROTOCOL ###
+Development Guidelines:
+- Use minimal code to complete current task
+- No large-scale refactoring
+- No unrelated edits, focus on current development task
+- Code must be precise, modular, and testable
+- Do not break existing functionality
+- If you need me to do any configuration (e.g. Supabase/AWS) please tell me explicitly
+
+Please proceed with the task by utilizing the architecture and task plan files as your primary references. Ensure that all development follows the coding protocol provided, maintaining focus on the current task requirements and context.
