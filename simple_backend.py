@@ -22,9 +22,9 @@ try:
     from src.agent_for_code_agents.agents import analysis_agent, architect_agent, todo_planning_agent, prompt_optimization_agent
     from src.agent_for_code_agents.config.llm_config import create_client
     AGENTS_AVAILABLE = True
-    print("✅ Real agents imported successfully")
+    print("Real agents imported successfully")
 except ImportError as e:
-    print(f"⚠️  Warning: Could not import real agents: {e}")
+    print(f"Warning: Could not import real agents: {e}")
     print("   Falling back to simplified agents")
     AGENTS_AVAILABLE = False
 
