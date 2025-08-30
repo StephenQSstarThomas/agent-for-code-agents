@@ -1,0 +1,23 @@
+## Project Context
+The current project involves developing a web-based application with specific tasks outlined to achieve functional objectives. The focus is on enhancing the system based on precise architectural guidelines to ensure scalability, security, and maintainability.
+
+## Reference Files
+- **Architecture:** [workspace\web-based-task\architecture.md]
+- **Tasks:** [workspace\web-based-task\task_plan.md]
+
+## Additional Files Available
+- workspace\web-based-task\ui_design.md
+- workspace\web-based-task\database_schema.md
+- workspace\web-based-task\api_endpoints.md
+- workspace\web-based-task\user_stories.md
+
+## CODING PROTOCOL
+### Development Guidelines:
+- Use minimal code to complete current task
+- No large-scale refactoring
+- No unrelated edits, focus on current development task
+- Code must be precise, modular, and testable
+- Do not break existing functionality
+- If you need me to do any configuration (e.g. Supabase/AWS) please tell me explicitly
+
+Ensure you reference the architecture and task plan files to align your development efforts with the project's overall design and objectives. Maintain focus on the current task while adhering strictly to the coding protocol to optimize both the development process and the resulting application functionality.

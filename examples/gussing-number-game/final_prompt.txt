@@ -1,0 +1,23 @@
+**Project Context**  
+The Guessing Number Game is designed to offer a simple yet engaging experience where players guess a randomly generated number between 1 and 10, with up to 5 attempts. The objective is to develop a user-friendly game that provides instant feedback, promoting user engagement and satisfaction. Success is measured by user engagement rates, average session duration, and user feedback.
+
+**Reference Files**  
+- Analysis: [workspace\guessing-number-game\analysis_output.md](workspace\guessing-number-game\analysis_output.md)
+- Architecture: [workspace\guessing-number-game\architecture.md](workspace\guessing-number-game\architecture.md)
+- Tasks: [workspace\guessing-number-game\task_plan.md](workspace\guessing-number-game\task_plan.md)
+
+**Additional Files Available**  
+- Docker configuration: workspace\guessing-number-game\docker\Dockerfile
+- Deployment scripts: workspace\guessing-number-game\scripts\deploy.sh
+- Environment configurations: workspace\guessing-number-game\config\dev.env, workspace\guessing-number-game\config\prod.env
+
+### CODING PROTOCOL ###  
+Development Guidelines:
+- Use minimal code to complete current task
+- No large-scale refactoring
+- No unrelated edits, focus on current development task
+- Code must be precise, modular, and testable
+- Do not break existing functionality
+- If you need me to do any configuration (e.g., Supabase/AWS) please tell me explicitly
+
+Focus on implementing the core game mechanics and user interface as outlined in the project documents, ensuring adherence to coding protocols and project requirements.
