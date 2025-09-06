@@ -10,8 +10,8 @@ authors = [
     {name = "Shi Qiu", email = "stephenqius@gmail.com"},
     {name = "Siwei Han", email = "lillian423@126.com"},
     {name = "Zhaorun Chen", email = "billchandler0226@gmail.com"},
-    {name = "Huaxiu Yao", email = "huaxiu@cs.unc.edu"},
-    {name = "Linjie Li", email = "linjieli222@gmail.com"}
+    {name = "Linjie Li", email = "linjieli222@gmail.com"},
+    {name = "Huaxiu Yao", email = "huaxiu@cs.unc.edu"}
 ]
 readme = "README.md"
 requires-python = ">=3.11"
