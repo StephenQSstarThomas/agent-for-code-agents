@@ -10,9 +10,11 @@ export class ApiClient {
 
   async request<T>(
     endpoint: string,
-    options: RequestInit = {}
+    options: RequestInit = {},
+    retries: number = 3
   ): Promise<T> {
     const url = `${this.baseURL}${endpoint}`
+    const timeoutMs = 30000 // 30 second timeout
     
     const config: RequestInit = {
       headers: {
@@ -22,60 +24,115 @@ export class ApiClient {
       ...options,
     }
 
-    try {
-      console.log(`Making API request to: ${url}`)
-      console.log(`Request config:`, config)
-      
-      const response = await fetch(url, config)
-      console.log(`API response status: ${response.status}`)
+    let lastError: Error | undefined
 
-      if (!response.ok) {
-        let errorMessage = `HTTP error! status: ${response.status}`
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      try {
+        console.log(`Making API request to: ${url} (attempt ${attempt + 1}/${retries + 1})`)
+        if (attempt > 0) {
+          console.log(`Request config:`, config)
+        }
+        
+        const response = await fetch(url, config)
+        console.log(`API response status: ${response.status}`)
 
-        // Try to get error details from response
-        try {
-          const errorData = await response.json()
-          if (errorData.detail) {
-            errorMessage = errorData.detail
-          } else if (errorData.message) {
-            errorMessage = errorData.message
+        if (!response.ok) {
+          let errorMessage = `HTTP error! status: ${response.status}`
+          let errorDetails = null
+
+          // Try to get error details from response
+          try {
+            const errorData = await response.json()
+            errorDetails = errorData
+            if (errorData.detail) {
+              errorMessage = errorData.detail
+            } else if (errorData.message) {
+              errorMessage = errorData.message
+            } else if (typeof errorData === 'string') {
+              errorMessage = errorData
+            }
+          } catch {
+            // If we can't parse error response, use status text
+            errorMessage = response.statusText || errorMessage
           }
-        } catch {
-          // If we can't parse error response, use default message
+
+          // For 4xx errors, don't retry
+          if (response.status >= 400 && response.status < 500) {
+            throw new ApiError(errorMessage, response.status, errorDetails)
+          }
+
+          // For 5xx errors, retry
+          if (attempt === retries) {
+            throw new ApiError(errorMessage, response.status, errorDetails)
+          }
+          
+          console.warn(`Server error (${response.status}), retrying in ${(attempt + 1) * 1000}ms...`)
+          await new Promise(resolve => setTimeout(resolve, (attempt + 1) * 1000))
+          continue
         }
 
-        throw new Error(errorMessage)
-      }
+        const contentType = response.headers.get('content-type')
+        if (contentType && contentType.includes('application/json')) {
+          const data = await response.json()
+          if (attempt > 0) {
+            console.log(`API request succeeded on attempt ${attempt + 1}`)
+          }
+          return data
+        }
 
-      const contentType = response.headers.get('content-type')
-      if (contentType && contentType.includes('application/json')) {
-        const data = await response.json()
-        console.log(`API response data:`, data)
-        return data
+        const text = await response.text()
+        if (attempt > 0) {
+          console.log(`API request succeeded on attempt ${attempt + 1}`)
+        }
+        return text as unknown as T
+      } catch (error) {
+        lastError = error as Error
+        console.error(`API request attempt ${attempt + 1} failed for ${endpoint}:`, error)
+        
+        // Check for network errors specifically
+        if (error instanceof TypeError && (error.message.includes('fetch') || error.message.includes('Failed to fetch'))) {
+          if (attempt === retries) {
+            throw new Error(`Cannot connect to backend server at ${this.baseURL}. Please ensure the backend is running on the correct port.`)
+          }
+          console.warn(`Network error, retrying in ${(attempt + 1) * 1000}ms...`)
+          await new Promise(resolve => setTimeout(resolve, (attempt + 1) * 1000))
+          continue
+        }
+        
+        // Check for timeout errors
+        if (error instanceof Error && (error.name === 'AbortError' || error.message.includes('timeout'))) {
+          if (attempt === retries) {
+            throw new Error(`Request to ${endpoint} timed out after ${timeoutMs}ms`)
+          }
+          console.warn(`Timeout error, retrying in ${(attempt + 1) * 1000}ms...`)
+          await new Promise(resolve => setTimeout(resolve, (attempt + 1) * 1000))
+          continue
+        }
+        
+        // Check for CORS errors
+        if (error instanceof TypeError && error.message.includes('CORS')) {
+          throw new Error(`CORS error when connecting to ${this.baseURL}. Backend CORS configuration may be incorrect.`)
+        }
+        
+        // For API errors, don't retry
+        if (error instanceof ApiError) {
+          throw error
+        }
+        
+        // For other errors, retry
+        if (attempt === retries) {
+          if (error instanceof Error) {
+            throw new Error(`API request to ${endpoint} failed after ${retries + 1} attempts: ${error.message}`)
+          }
+          throw new Error(`API request to ${endpoint} failed after ${retries + 1} attempts: ${String(error)}`)
+        }
+        
+        console.warn(`Retrying in ${(attempt + 1) * 1000}ms...`)
+        await new Promise(resolve => setTimeout(resolve, (attempt + 1) * 1000))
       }
-
-      const text = await response.text()
-      console.log(`API response text:`, text)
-      return text as unknown as T
-    } catch (error) {
-      console.error(`API request failed for ${endpoint}:`, error)
-      
-      // Check for network errors specifically
-      if (error instanceof TypeError && (error.message.includes('fetch') || error.message.includes('Failed to fetch'))) {
-        throw new Error(`Cannot connect to backend server at ${this.baseURL}. Please ensure the backend is running on the correct port.`)
-      }
-      
-      // Check for CORS errors
-      if (error instanceof TypeError && error.message.includes('CORS')) {
-        throw new Error(`CORS error when connecting to ${this.baseURL}. Backend CORS configuration may be incorrect.`)
-      }
-      
-      // Re-throw with more context
-      if (error instanceof Error) {
-        throw new Error(`API request to ${endpoint} failed: ${error.message}`)
-      }
-      throw new Error(`API request to ${endpoint} failed: ${String(error)}`)
     }
+
+    throw lastError || new Error(`API request to ${endpoint} failed after ${retries + 1} attempts`)
   }
 
   // Project API
@@ -109,15 +166,31 @@ export class ApiClient {
   }
 
   async getProject(projectId: string) {
-    return this.request(`/api/projects/${projectId}`)
+    // Properly encode project ID for URL
+    const encodedProjectId = encodeURIComponent(projectId)
+    return this.request(`/api/projects/${encodedProjectId}`)
   }
 
   async getProjectWorkspace(projectId: string): Promise<{project_id: string, workspace_path: string, exists: boolean}> {
-    return this.request(`/api/projects/${projectId}/workspace`)
+    try {
+      // Properly encode project ID for URL
+      const encodedProjectId = encodeURIComponent(projectId)
+      console.log(`Getting workspace for project: ${projectId} (encoded: ${encodedProjectId})`)
+      return await this.request(`/api/projects/${encodedProjectId}/workspace`)
+    } catch (error) {
+      console.error(`Failed to get workspace for project ${projectId}:`, error)
+      // Return fallback workspace data
+      return {
+        project_id: projectId,
+        workspace_path: `workspace/${projectId}`,
+        exists: false
+      }
+    }
   }
 
   async archiveProject(projectId: string): Promise<{message: string, project_id: string, local_path: string, project_name: string, archived_at: string}> {
-    return this.request(`/api/projects/${projectId}/archive`, {
+    const encodedProjectId = encodeURIComponent(projectId)
+    return this.request(`/api/projects/${encodedProjectId}/archive`, {
       method: 'POST',
     })
   }

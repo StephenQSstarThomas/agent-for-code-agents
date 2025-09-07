@@ -108,21 +108,21 @@ export default function HomePage() {
               </a>
               <span className="text-muted-foreground">•</span>
               <a 
-                href="https://www.huaxiuyao.io/" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="text-primary hover:text-primary/80 transition-colors underline decoration-dotted"
-              >
-                Huaxiu Yao
-              </a>
-              <span className="text-muted-foreground">•</span>
-              <a 
                 href="https://scholar.google.com/citations?user=WR875gYAAAAJ&hl=en" 
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="text-primary hover:text-primary/80 transition-colors underline decoration-dotted"
               >
                 Linjie Li
+              </a>
+              <span className="text-muted-foreground">•</span>
+              <a 
+                href="https://www.huaxiuyao.io/" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-primary hover:text-primary/80 transition-colors underline decoration-dotted"
+              >
+                Huaxiu Yao
               </a>
             </div>
           </motion.div>

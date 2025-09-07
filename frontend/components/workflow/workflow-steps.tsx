@@ -12,7 +12,9 @@ import {
   ChevronRight,
   ChevronDown,
   FileText,
-  ExternalLink
+  ExternalLink,
+  Download,
+  FolderOpen
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -23,12 +25,13 @@ import { cn, formatFileSize } from '@/lib/utils'
 import type { ProjectStep } from '@/lib/store'
 
 interface WorkflowStepsProps {
-  onStepAction?: (stepId: string, action: 'run' | 'edit' | 'regenerate') => void
+  onStepAction?: (stepId: string, action: 'run' | 'edit' | 'regenerate' | 'load') => void
   onFileOpen?: (filePath: string) => void
+  hasExistingWorkflow?: boolean
   className?: string
 }
 
-export function WorkflowSteps({ onStepAction, onFileOpen, className }: WorkflowStepsProps) {
+export function WorkflowSteps({ onStepAction, onFileOpen, hasExistingWorkflow, className }: WorkflowStepsProps) {
   const { currentProject } = useAppStore()
   const [expandedSteps, setExpandedSteps] = useState<string[]>([])
 
@@ -147,13 +150,25 @@ export function WorkflowSteps({ onStepAction, onFileOpen, className }: WorkflowS
                   <div className="flex items-center gap-2">
                     {/* Action Buttons */}
                     {step.status === 'pending' && canRun && (
-                      <Button
-                        size="sm"
-                        onClick={() => onStepAction?.(step.id, 'run')}
-                      >
-                        <Play className="h-4 w-4 mr-1" />
-                        Run
-                      </Button>
+                      <>
+                        {hasExistingWorkflow ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => onStepAction?.(step.id, 'load')}
+                          >
+                            <FolderOpen className="h-4 w-4 mr-1" />
+                            Load
+                          </Button>
+                        ) : null}
+                        <Button
+                          size="sm"
+                          onClick={() => onStepAction?.(step.id, 'run')}
+                        >
+                          <Play className="h-4 w-4 mr-1" />
+                          {hasExistingWorkflow ? 'Regenerate' : 'Run'}
+                        </Button>
+                      </>
                     )}
                     
                     {step.status === 'completed' && (

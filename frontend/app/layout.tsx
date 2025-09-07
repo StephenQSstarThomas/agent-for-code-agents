@@ -13,8 +13,8 @@ export const metadata: Metadata = {
     { name: 'Shi Qiu', url: 'https://stephenqsstarthomas.github.io/' },
     { name: 'Siwei Han', url: 'https://lillianwei-h.github.io/' },
     { name: 'Zhaorun Chen', url: 'https://billchan226.github.io/' },
-    { name: 'Huaxiu Yao', url: 'https://www.huaxiuyao.io/' },
-    { name: 'Linjie Li', url: 'https://scholar.google.com/citations?user=WR875gYAAAAJ&hl=en' }
+    { name: 'Linjie Li', url: 'https://scholar.google.com/citations?user=WR875gYAAAAJ&hl=en' },
+    { name: 'Huaxiu Yao', url: 'https://www.huaxiuyao.io/' }
   ],
 }
 

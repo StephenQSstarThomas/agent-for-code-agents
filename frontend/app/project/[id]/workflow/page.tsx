@@ -17,16 +17,15 @@ import { useAppStore } from '@/lib/store'
 import { apiClient } from '@/lib/api'
 import { sanitizeErrorMessage, cleanUnicodeText } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
+import { useProjectLoader } from '@/hooks/use-project-loader'
 
 export default function ProjectWorkflowPage() {
   const params = useParams()
   const router = useRouter()
-  const projectId = params.id as string
   const { toast } = useToast()
   
   const { 
-    currentProject, 
-    setCurrentProject, 
+    projects,
     updateProject, 
     updateProjectStep,
     addMessage,
@@ -34,112 +33,139 @@ export default function ProjectWorkflowPage() {
     isProcessing 
   } = useAppStore()
   
+  // Get the raw project ID from URL params
+  const rawProjectId = params.id as string
+  
+  // For workspace projects, the URL param might be the workspace folder name
+  // We need to find the actual project by checking the store
+  const decodedProjectId = decodeURIComponent(rawProjectId)
+  
+  let actualProject = projects.find(p => {
+    // Direct ID match (both raw and decoded)
+    if (p.id === rawProjectId || p.id === decodedProjectId) return true
+    
+    // Workspace folder name match
+    if (p.workspace) {
+      const workspaceName = p.workspace.split('/').pop() || p.workspace.split('\\').pop()
+      if (workspaceName === rawProjectId || workspaceName === decodedProjectId) return true
+    }
+    
+    return false
+  })
+  
+  // Use the actual project ID, with better fallback logic
+  const projectId = actualProject ? actualProject.id : decodedProjectId
+
+  console.log('Raw project ID from params:', rawProjectId)
+  console.log('Found project:', actualProject)
+  console.log('Using project ID:', projectId)
+
+  // Use the project loader hook
+  const { isLoading: isLoadingProject, workspacePath, project: currentProject, hasExistingWorkflow } = useProjectLoader({
+    rawProjectId,
+    projectId,
+    actualProject
+  })
+  
   const [isRunning, setIsRunning] = useState(false)
   const [showFileViewer, setShowFileViewer] = useState(false)
   const [selectedFile, setSelectedFile] = useState<string>('')
-  const [workspacePath, setWorkspacePath] = useState<string>('')
   const [isArchiving, setIsArchiving] = useState(false)
 
-  useEffect(() => {
-    // Load project workspace path
-    const loadWorkspacePath = async () => {
-      try {
-        const workspace = await apiClient.getProjectWorkspace(projectId)
-        setWorkspacePath(workspace.workspace_path)
-      } catch (error) {
-        console.error('Failed to load workspace path:', error)
-        // Fallback to default pattern
-        setWorkspacePath(`workspace/${projectId}`)
-      }
-    }
+  // Project loading is now handled by the useProjectLoader hook
 
-    loadWorkspacePath()
-
-    // Load project from API if not in store
-    if (!currentProject || currentProject.id !== projectId) {
-      const loadProject = async () => {
-        try {
-          const project = await apiClient.getProject(projectId) as any
-          
-          // Transform backend project to frontend format
-          const transformedProject = {
-            id: project.id,
-            name: project.name,
-            description: project.description,
-            status: project.status as 'draft' | 'processing' | 'completed' | 'error',
-            steps: project.steps.map((step: any) => ({
-              id: step.id,
-              name: step.name,
-              description: step.name,
-              status: step.status as 'pending' | 'in_progress' | 'completed' | 'error',
-              output: step.output,
-              filePath: step.file_path,
-              error: step.error,
-              createdAt: new Date(project.created_at),
-              updatedAt: new Date(project.updated_at),
-            })),
-            workspace: project.workspace,
-            createdAt: new Date(project.created_at),
-            updatedAt: new Date(project.updated_at),
-          }
-          
-          setCurrentProject(transformedProject)
-        } catch (error) {
-          console.error('Failed to load project:', error)
-          // Create a fallback project if API fails
-          const fallbackProject = {
-            id: projectId,
-            name: 'Project Workflow',
-            description: 'Running AI workflow',
-            status: 'draft' as const,
-            steps: [
-              {
-                id: 'analysis',
-                name: 'Requirements Analysis',
-                description: 'Analyzing project requirements and creating structured analysis',
-                status: 'pending' as const,
-                createdAt: new Date(),
-                updatedAt: new Date(),
-              },
-              {
-                id: 'architecture',
-                name: 'Technical Architecture',
-                description: 'Designing technical architecture and system components',
-                status: 'pending' as const,
-                createdAt: new Date(),
-                updatedAt: new Date(),
-              },
-              {
-                id: 'planning',
-                name: 'Implementation Planning',
-                description: 'Creating detailed task breakdown and implementation plan',
-                status: 'pending' as const,
-                createdAt: new Date(),
-                updatedAt: new Date(),
-              },
-              {
-                id: 'optimization',
-                name: 'Prompt Optimization',
-                description: 'Generating optimized final prompt for code generation',
-                status: 'pending' as const,
-                createdAt: new Date(),
-                updatedAt: new Date(),
-              },
-            ],
-            workspace: `workspace/${projectId}`,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          }
-          setCurrentProject(fallbackProject)
-        }
-      }
-      
-      loadProject()
-    }
-  }, [projectId, currentProject, setCurrentProject])
-
-  const handleStepAction = async (stepId: string, action: 'run' | 'edit' | 'regenerate') => {
+  const handleStepAction = async (stepId: string, action: 'run' | 'edit' | 'regenerate' | 'load') => {
     if (!currentProject) return
+
+    // For load action, try to load existing files
+    if (action === 'load') {
+      try {
+        const step = currentProject.steps.find(s => s.id === stepId)
+        if (step?.filePath) {
+          // Try to read the existing file
+          const fileData = await apiClient.readFile(step.filePath)
+          
+          // Update step with loaded content
+          updateProjectStep(currentProject.id, stepId, { 
+            status: 'completed',
+            output: fileData.content,
+            filePath: step.filePath
+          })
+
+          addMessage({
+            type: 'assistant',
+            content: `Loaded existing ${stepId} from ${step.filePath}`,
+            metadata: { step: stepId }
+          })
+
+          toast({
+            title: "Workflow loaded",
+            description: `Loaded existing ${stepId} file successfully`,
+            variant: "default",
+          })
+        } else {
+          // Try to find file by convention - try multiple possible paths
+          const possiblePaths = [
+            `${workspacePath}/${stepId}.md`,
+            `workspace/${rawProjectId}/${stepId}.md`,
+            `workspace/${decodedProjectId}/${stepId}.md`,
+          ]
+          
+          let fileFound = false
+          for (const conventionalPath of possiblePaths) {
+            try {
+              console.log(`Trying to load file from: ${conventionalPath}`)
+              const fileData = await apiClient.readFile(conventionalPath)
+              
+              updateProjectStep(currentProject.id, stepId, { 
+                status: 'completed',
+                output: fileData.content,
+                filePath: conventionalPath
+              })
+
+              addMessage({
+                type: 'assistant',
+                content: `Loaded existing ${stepId} from ${conventionalPath}`,
+                metadata: { step: stepId }
+              })
+
+              toast({
+                title: "Workflow loaded",
+                description: `Found and loaded ${stepId}.md`,
+                variant: "default",
+              })
+              
+              fileFound = true
+              break
+            } catch (fileError) {
+              console.log(`File not found at: ${conventionalPath}`)
+            }
+          }
+          
+          if (!fileFound) {
+            addMessage({
+              type: 'system',
+              content: `No existing ${stepId} file found in any of the expected locations. You can run the step to generate it.`,
+              metadata: { step: stepId }
+            })
+
+            toast({
+              title: "No existing file",
+              description: `No ${stepId}.md file found in workspace`,
+              variant: "destructive",
+            })
+          }
+        }
+      } catch (error) {
+        console.error(`Failed to load ${stepId}:`, error)
+        addMessage({
+          type: 'system',
+          content: `Failed to load ${stepId}: ${error}`,
+          metadata: { step: stepId }
+        })
+      }
+      return
+    }
 
     setIsRunning(true)
     setProcessing(true)
@@ -312,13 +338,19 @@ export default function ProjectWorkflowPage() {
     return (completedSteps / currentProject.steps.length) * 100
   }
 
-  if (!currentProject) {
+  if (isLoadingProject || !currentProject) {
     return (
       <MainLayout>
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
-            <h2 className="text-2xl font-semibold mb-2">Loading Project...</h2>
-            <p className="text-muted-foreground">Please wait while we load your project details.</p>
+            <h2 className="text-2xl font-semibold mb-2">
+              {isLoadingProject ? 'Loading Project...' : 'Initializing...'}
+            </h2>
+            <p className="text-muted-foreground">
+              {isLoadingProject 
+                ? 'Please wait while we load your project details.' 
+                : 'Setting up your workspace project.'}
+            </p>
           </div>
         </div>
       </MainLayout>
@@ -464,6 +496,7 @@ export default function ProjectWorkflowPage() {
             <WorkflowSteps
               onStepAction={handleStepAction}
               onFileOpen={handleFileOpen}
+              hasExistingWorkflow={hasExistingWorkflow}
             />
           </motion.div>
 

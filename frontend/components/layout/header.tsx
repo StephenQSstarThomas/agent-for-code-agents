@@ -1,13 +1,16 @@
 'use client'
 
 import { useState } from 'react'
-import { Menu, X, Bot, Github, Moon, Sun } from 'lucide-react'
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
+import { Menu, X, Bot, Github, Moon, Sun, Home, Settings, LayoutDashboard } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useAppStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 
 export function Header() {
   const { sidebarOpen, setSidebarOpen, darkMode, toggleDarkMode, currentProject } = useAppStore()
+  const pathname = usePathname()
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -24,17 +27,19 @@ export function Header() {
           </Button>
           
           <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center w-8 h-8 bg-gradient-primary rounded-lg">
-              <Bot className="h-5 w-5 text-white" />
-            </div>
-            <div>
-              <h1 className="text-base font-semibold">Agent for Code Agents</h1>
-              {currentProject && (
-                <p className="text-sm text-muted-foreground">
-                  {currentProject.name}
-                </p>
-              )}
-            </div>
+            <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+              <div className="flex items-center justify-center w-8 h-8 bg-gradient-primary rounded-lg">
+                <Bot className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <h1 className="text-base font-semibold">Agent for Code Agents</h1>
+                {currentProject && (
+                  <p className="text-sm text-muted-foreground">
+                    {currentProject.name}
+                  </p>
+                )}
+              </div>
+            </Link>
           </div>
         </div>
 
@@ -54,6 +59,47 @@ export function Header() {
 
         {/* Right section */}
         <div className="flex items-center gap-2">
+          {/* Navigation buttons - only show when not on home page */}
+          {pathname !== '/' && (
+            <>
+              <Button
+                variant="ghost"
+                size="sm"
+                asChild
+                className="hidden sm:inline-flex"
+              >
+                <Link href="/">
+                  <Home className="h-4 w-4 mr-2" />
+                  Home
+                </Link>
+              </Button>
+              
+              <Button
+                variant="ghost"
+                size="sm"
+                asChild
+                className="hidden sm:inline-flex"
+              >
+                <Link href="/dashboard">
+                  <LayoutDashboard className="h-4 w-4 mr-2" />
+                  Dashboard
+                </Link>
+              </Button>
+            </>
+          )}
+          
+          <Button
+            variant="ghost"
+            size="sm"
+            asChild
+            className="hidden sm:inline-flex"
+          >
+            <Link href="/settings">
+              <Settings className="h-4 w-4 mr-2" />
+              Settings
+            </Link>
+          </Button>
+          
           <Button
             variant="ghost"
             size="icon"
